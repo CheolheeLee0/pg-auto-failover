@@ -1,7 +1,27 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(docker logs:*)",
+      "Bash(lsof:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(true)",
+      "Bash(sudo docker-compose:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker start:*)",
+      "Bash(chmod:*)",
+      "Bash(./test/run.sh:*)",
+      "Bash(mkdir:*)",
+      "Bash(./test/auto-failover-test.sh:*)",
+      "Bash(find:*)",
+      "Bash(rm:*)",
+      "Bash(./test/simple-failover-test.sh:*)",
+      "Bash(./test/failover-timing-test.sh:*)",
+      "Bash(./test/comprehensive-failover-test.sh:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

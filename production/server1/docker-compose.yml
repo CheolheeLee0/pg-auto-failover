@@ -1,0 +1,39 @@
+# pg-auto-failover Monitor Node Configuration
+# This monitor node oversees the cluster and coordinates failover operations
+# Port mapping: 5432 for monitor service
+
+services:
+  # Monitor Node - manages cluster state and coordinates failover
+  postgres:
+    image: citusdata/pg_auto_failover:latest
+    platform: linux/amd64
+    container_name: rtt-postgres
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PG_AUTOCTL_HBA_LAN=true
+      - PG_AUTOCTL_AUTH_METHOD=trust
+    command: >
+      bash -c "
+        sudo -u postgres pg_autoctl create monitor --pgdata /tmp/pgdata/monitor --pgport 5432 --auth trust --no-ssl --run
+      "
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - pg_monitor_data:/tmp/pgdata/monitor
+    networks:
+      - pg-auto-failover-network
+
+volumes:
+  pg_monitor_data:
+
+networks:
+  pg-auto-failover-network:
+    driver: bridge

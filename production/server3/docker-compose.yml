@@ -1,0 +1,40 @@
+# pg-auto-failover Database Node 2 Configuration
+# Primary/Secondary database node with lower priority (50)
+# Port mapping: 5432 for PostgreSQL service
+
+services:
+  # Database Node 2 - Primary/Secondary with lower priority
+  postgres:
+    image: citusdata/pg_auto_failover:latest
+    platform: linux/amd64
+    container_name: rtt-postgres
+    environment:
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PG_AUTOCTL_HBA_LAN=true
+      - PG_AUTOCTL_AUTH_METHOD=trust
+      - POSTGRES_PASSWORD=postgres
+    command: >
+      bash -c "
+        sleep 15 &&
+        sudo -u postgres pg_autoctl create postgres --pgdata /tmp/pgdata/postgres --pgport 5432 --username postgres --dbname appdb --hostname postgres --auth trust --monitor postgres://autoctl_node@SERVER1_IP:5432/pg_auto_failover --no-ssl --candidate-priority 50 --run
+      "
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - postgres_db2_data:/tmp/pgdata/postgres
+    networks:
+      - pg-auto-failover-network
+
+volumes:
+  postgres_db2_data:
+
+networks:
+  pg-auto-failover-network:
+    driver: bridge

@@ -1,0 +1,99 @@
+# pg-auto-failover 클러스터 통합 구성
+# 모니터 노드와 두 개의 데이터베이스 노드를 포함하는 완전한 클러스터
+# 포트 매핑:
+# - 5432: 모니터 노드
+# - 5435: postgres-db1
+# - 5436: postgres-db2
+services:
+  # Monitor Node - 클러스터의 상태를 감시하고 페일오버를 조율
+  pg-auto-failover-monitor:
+    image: citusdata/pg_auto_failover:latest
+    platform: linux/amd64
+    container_name: pg-monitor-test
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PG_AUTOCTL_HBA_LAN=true
+      - PG_AUTOCTL_AUTH_METHOD=trust
+    command: >
+      bash -c "
+        sudo -u postgres pg_autoctl create monitor --pgdata /tmp/pgdata/monitor --pgport 5432 --auth trust --no-ssl --run
+      "
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pg-auto-failover-network
+
+  # Database Node 1 - Primary/Secondary 노드
+  postgres-db1:
+    image: citusdata/pg_auto_failover:latest
+    platform: linux/amd64
+    container_name: postgres-db1-test
+    environment:
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PG_AUTOCTL_HBA_LAN=true
+      - PG_AUTOCTL_AUTH_METHOD=trust
+      - POSTGRES_PASSWORD=postgres
+    command: >
+      bash -c "
+        sleep 10 &&
+        sudo -u postgres pg_autoctl create postgres --pgdata /tmp/pgdata/postgres --pgport 5432 --username postgres --dbname appdb --hostname postgres-db1 --auth trust --monitor postgres://autoctl_node@pg-auto-failover-monitor:5432/pg_auto_failover --no-ssl --candidate-priority 100 --run
+      "
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      - pg-auto-failover-monitor
+    networks:
+      - pg-auto-failover-network
+
+  # Database Node 2 - Primary/Secondary 노드
+  postgres-db2:
+    image: citusdata/pg_auto_failover:latest
+    platform: linux/amd64
+    container_name: postgres-db2-test
+    environment:
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PG_AUTOCTL_HBA_LAN=true
+      - PG_AUTOCTL_AUTH_METHOD=trust
+      - POSTGRES_PASSWORD=postgres
+    command: >
+      bash -c "
+        sleep 15 &&
+        sudo -u postgres pg_autoctl create postgres --pgdata /tmp/pgdata/postgres --pgport 5432 --username postgres --dbname appdb --hostname postgres-db2 --auth trust --monitor postgres://autoctl_node@pg-auto-failover-monitor:5432/pg_auto_failover --no-ssl --candidate-priority 50 --run
+      "
+    ports:
+      - "5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      - pg-auto-failover-monitor
+    networks:
+      - pg-auto-failover-network
+
+volumes:
+  pg_monitor_data_test:
+  postgres_db1_data_test:
+  postgres_db2_data_test:
+
+networks:
+  pg-auto-failover-network:
+    driver: bridge
